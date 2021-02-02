@@ -1,9 +1,10 @@
 #include <iostream>
 #include <systemc>
+#include "Testbench.hpp"
 
 int sc_main(int, char**) {  
 
-   std::cout << "Hello World !" << std::endl;
+   std::cout << "Sample starting" << std::endl;
 	//Class Class("Class");
 	//Testbench testbench("Testbench");
 

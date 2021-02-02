@@ -72,5 +72,7 @@ tst:
 run:
 	LD_LIBRARY_PATH=$(HOME)/systemc-2.3.4/lib-linux64/ ./a.out
 
+bouiboui: clean
+	g++ -I/home/user/systemc-2.3.4/include -L/home/user/systemc-2.3.4/lib-linux64 -lsystemc src/Uart.cpp src/Testbench.cpp src/main.cpp
 
 # LD_LIBRARY_PATH=$HOME/systemc-2.3.4/lib-linux64/ ./a.out

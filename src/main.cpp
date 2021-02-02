@@ -1,10 +1,10 @@
 #include <iostream>
-#include <systemc>
+#include <systemc.h>
 #include "Testbench.hpp"
 
 int sc_main(int, char**) {  
 
-   std::cout << "Sample starting" << std::endl;
+   std::cout << std::endl << std::endl << "Global simulation" << std::endl;
 	//Class Class("Class");
 	//Testbench testbench("Testbench");
 

@@ -75,4 +75,6 @@ run: top
 top: clean
 	g++ -I/home/user/systemc-2.3.4/include -L/home/user/systemc-2.3.4/lib-linux64 -lsystemc src/main.cpp
 
+cls:
+	clear
 # LD_LIBRARY_PATH=$HOME/systemc-2.3.4/lib-linux64/ ./a.out

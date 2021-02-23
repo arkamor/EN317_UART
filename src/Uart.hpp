@@ -9,13 +9,9 @@ using namespace sc_core;
 class Uart : sc_module
 {
     SC_HAS_PROCESS(Uart);
-private:
-    static const unsigned int size = 256;
+    private: static const unsigned int size = 256;
 
-public:
-    Uart(sc_module_name name):
-            sc_module(name),
-            socket("socket")
+    public: Uart(sc_module_name name): sc_module(name), socket("socket")//, socket_o("socket_o")
     {
         
         socket.register_b_transport(this, &Uart::b_transport);
@@ -29,9 +25,9 @@ public:
         }
     }
 
-private:
-    void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
+    private: void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
     {
+
         tlm::tlm_command cmd = trans.get_command();
         sc_dt::uint64    adr = trans.get_address() / 4;
         unsigned char*   ptr = trans.get_data_ptr();
@@ -39,7 +35,30 @@ private:
         unsigned char*   byt = trans.get_byte_enable_ptr();
         unsigned int     wid = trans.get_streaming_width();
 
-        printf("Data received : %d at %p\n", *ptr, ptr);
+        printf("Data received (%do) : ", len);
+        for(int i=0; i<len;i++)
+        {
+            printf("%d", *(ptr+(len-i-1))); // 2 - 1 - 0
+            if(i != len-1) printf(" - ");
+        }
+
+        printf("\n");
+
+        if((*(ptr+len-1) & 0x80))
+        {
+            printf("Data : 0x%02X\n", *(ptr));
+        }
+        else
+        {
+            int parity = ((*(ptr+2) & 0b01100000) >> 5);
+            int baudrate = *(ptr) + (*(ptr+1) << 8) + ((*(ptr+2) & 0x01) << 16);
+            
+            printf("Config :\n");
+            printf("  - Parity   : %d\n", parity);
+            printf("  - BaudRate : %d\n", baudrate);
+            
+        }
+        
 
         wait(delay);
         delay = SC_ZERO_TIME;
@@ -47,7 +66,7 @@ private:
         trans.set_response_status(tlm::TLM_OK_RESPONSE);
     }
 
-    unsigned int transport_dbg(tlm::tlm_generic_payload& trans)
+    private: unsigned int transport_dbg(tlm::tlm_generic_payload& trans)
     {
         
         std::cout << "Debug un transport_dbg" << std::endl;
@@ -68,8 +87,10 @@ private:
         return num_bytes;
     }
 
-public:
-    tlm_utils::simple_target_socket<Uart> socket;
+    public: tlm_utils::simple_target_socket<Uart> socket;
+    //public: tlm_utils::simple_initiator_socket<Uart> socket_o;
+
+    
     int mem[size];
     static unsigned int mem_nr;
 };

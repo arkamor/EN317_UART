@@ -1,16 +1,58 @@
 #include <systemc.h>
 #include <iostream>
+#include <systemc>
+#include <tlm>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
 
-SC_MODULE(Testbench)
+using namespace sc_core;
+
+class Testbench : sc_module
 {
-    // attributs de la classe
-    sc_out<sc_uint<16> > D_in;
-    sc_in<sc_uint<16> > D_out;
+    SC_HAS_PROCESS(Testbench);
+public:
+    Testbench(sc_module_name name):
+            sc_module(name),
+            socket("socket")
+    {
+         SC_THREAD(firstProcess);
+        
+    }
 
-    sc_out<sc_uint<16> > Conf;
+private:
 
-    // methodes de la classe
-    SC_CTOR(Testbench);
-    void start(); // point d’entree de la SC_METHOD
-    // pour l’instant, c’est une methode C++ normale
+    void firstProcess()
+    {
+        tlm::tlm_generic_payload payload;
+
+        std::cout << "Envoi Data in Testbench" << std::endl;
+        
+        int data = 100;
+
+        payload.set_command(tlm::TLM_WRITE_COMMAND);
+        payload.set_address(0x0000FFFF);
+        payload.set_data_ptr(reinterpret_cast<unsigned char*>(&data));
+        payload.set_data_length(8);
+        payload.set_streaming_width(4);
+        payload.set_byte_enable_ptr(0);
+        payload.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+        sc_time time(SC_ZERO_TIME);
+        wait(sc_time(100, SC_MS));
+        socket->b_transport(payload, time);
+
+        if (payload.is_response_error())
+        {
+            char txt[100];
+            sprintf(txt, "Error from b_transport, response status = %s",
+                    payload.get_response_string().c_str());
+            SC_REPORT_ERROR("TLM-2", txt);
+        }
+
+    }
+
+public:
+    tlm_utils::simple_initiator_socket<Testbench> socket;
+
 };
+

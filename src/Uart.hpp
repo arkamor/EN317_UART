@@ -87,6 +87,11 @@ class Uart : sc_module
         return num_bytes;
     }
 
+    private: void sendData()
+    {
+        ; // Tu meux mettre ton code ici nico
+    }
+
     public: tlm_utils::simple_target_socket<Uart> socket;
     //public: tlm_utils::simple_initiator_socket<Uart> socket_o;
 

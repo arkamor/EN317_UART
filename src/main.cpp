@@ -5,8 +5,6 @@
 #include "Testbench.hpp"
 //#include "Reg.hpp"
 
-
-
 int sc_main(int, char**) {  
 
 	std::cout << std::endl << "Main run" << std::endl;
@@ -26,7 +24,8 @@ int sc_main(int, char**) {
 	//Testbench.set_data(0xAB);
 
 
-	Uart.socket.bind(Testbench.socket);
+	Uart.apb_in.bind(Testbench.apb_out);
+	Testbench.apb_in.bind(Uart.apb_out);
 	
 	// Start simulation
 	std::cout << "Global simulation starts" << std::endl;

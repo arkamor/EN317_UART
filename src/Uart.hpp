@@ -9,20 +9,13 @@ using namespace sc_core;
 class Uart : sc_module
 {
     SC_HAS_PROCESS(Uart);
-    private: static const unsigned int size = 256;
+    
 
-    public: Uart(sc_module_name name): sc_module(name), socket("socket")//, socket_o("socket_o")
+
+    public: Uart(sc_module_name name): sc_module(name), apb_out("apb_out"), apb_in("apb_in")
     {
-        
-        socket.register_b_transport(this, &Uart::b_transport);
-        socket.register_transport_dbg(this, &Uart::transport_dbg);
-
+        apb_in.register_b_transport(this, &Uart::b_transport);
         std::cout << "Uart called" << std::endl;
-
-        for (int i = 0; i < size; i++){
-            mem[i] = 0xAA000000 | (mem_nr << 20) | (rand() % 256);
-
-        }
     }
 
     private: void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
@@ -66,38 +59,38 @@ class Uart : sc_module
         trans.set_response_status(tlm::TLM_OK_RESPONSE);
     }
 
-    private: unsigned int transport_dbg(tlm::tlm_generic_payload& trans)
-    {
-        
-        std::cout << "Debug un transport_dbg" << std::endl;
-
-        tlm::tlm_command cmd = trans.get_command();
-        sc_dt::uint64    adr = trans.get_address() / 4;
-        unsigned char*   ptr = trans.get_data_ptr();
-        unsigned int     len = trans.get_data_length();
-
-        unsigned int num_bytes = (len < (size - adr) * 4) ?
-                                 len : (size - adr) * 4;
-
-        // if (cmd == tlm::TLM_READ_COMMAND)
-        //     memcpy(ptr, &mem[adr], num_bytes);
-        // else if (cmd == tlm::TLM_WRITE_COMMAND)
-        //     memcpy(&mem[adr], ptr, num_bytes);
-
-        return num_bytes;
-    }
-
     private: void sendData()
     {
         ; // Tu meux mettre ton code ici nico
     }
 
-    public: tlm_utils::simple_target_socket<Uart> socket;
-    //public: tlm_utils::simple_initiator_socket<Uart> socket_o;
+    public: void sendToSocket(tlm::tlm_generic_payload *my_payload, tlm_utils::simple_initiator_socket<Uart> *socket)
+    {
+        sc_time time(SC_ZERO_TIME);
+        wait(sc_time(100, SC_MS));
+
+        (*socket)->b_transport(*my_payload, time);
+
+        if (my_payload->is_response_error())
+        {
+            char txt[100];
+            sprintf(txt, "Error from b_transport, response status = %s", my_payload->get_response_string().c_str());
+            SC_REPORT_ERROR("TLM-2", txt);
+        }
+    }
+    
+    public: void buidPayload(unsigned char *data, int len, sc_dt::uint64 address, tlm::tlm_generic_payload *payload)
+    {
+        payload->set_command(tlm::TLM_WRITE_COMMAND);
+        payload->set_address(address);
+        payload->set_data_ptr(data);
+        payload->set_data_length(len);
+        payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+    }
+
+    public: tlm_utils::simple_initiator_socket<Uart> apb_out;
+    public: tlm_utils::simple_target_socket<Uart> apb_in;
 
     
-    int mem[size];
-    static unsigned int mem_nr;
-};
 
-unsigned int Uart::mem_nr = 0;
+};

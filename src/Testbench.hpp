@@ -13,33 +13,19 @@ class Testbench : sc_module
     
     public: Testbench(sc_module_name name): sc_module(name), apb_in("apb_in"), apb_out("apb_out")
     {
-         SC_THREAD(firstProcess);
+        this->data = 123;
+        SC_THREAD(firstProcess);
     }
 
-    public: void set_data(int data)
-    {
-        this->data[0] = data;
-        this->data[1] = 0;
-        this->data[2] = 0b10000000;
-    }
-    
-    public: void set_config(int data)
-    {
-        this->data[0] = ((data & 0x0000ff));
-        this->data[1] = ((data & 0x00ff00) >> 8);
-        this->data[2] = ((data & 0xff0000) >> 16);
-
-        printf("config set with %d to {%d,%d,%d}\n", data, this->data[2], this->data[1], this->data[0]);
-    }
 
     private: void firstProcess()
     {
 
         tlm::tlm_generic_payload my_payload;
 
-        printf("Building Payload with value : %d - %d - %d\n", this->data[2], this->data[1], this->data[0]);
+        printf("Building Payload with value : %d\n", data);
     
-        buidPayload(this->data, 3, 0x00000000, &my_payload);
+        buidPayload(&(this->data), 1, 0x00000000, &my_payload);
 
         std::cout << "Envoi Data in Testbench" << std::endl;
         sendToSocket(&my_payload, &apb_out);
@@ -72,7 +58,7 @@ class Testbench : sc_module
 
     public: tlm_utils::simple_initiator_socket<Testbench> apb_out;
     public: tlm_utils::simple_target_socket<Testbench> apb_in;
-    private: unsigned char data[3];
+    private: unsigned char data;
 
 };
 

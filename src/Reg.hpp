@@ -32,24 +32,30 @@
 #define RXBUFF_Bp 12 //Receive Buffer Full
 
 //RECEIVER HOLDING REGISTER
-#define UART_SR_ADDR 0x18
+#define UART_RHR_ADDR 0x18
 #define RXCHR_Bp 0 //Received Character [0:7]
 
 //TRANSMIT HOLDING REGISTER
-#define UART_SR_ADDR 0x1C
+#define UART_THR_ADDR 0x1C
 #define TXCHR_Bp 0 //Character to be Transmitted [0:7]
 
 class Reg
 {
 
+   public: Reg()
+    {
+        std::cout << "Reg created" << std::endl;
+    }
+
 public:
    void writeToRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
    {
-      memcpy(BASE_ADDR + offset, &data, len);
+      printf("Wrote to register");
+      ;//memcpy(offset, &data, len);
    }
 
    void readRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
    {
-      memcpy(&data, BASE_ADDR + offset, len);
+      ;//memcpy(&data, offset, len);
    }
 };

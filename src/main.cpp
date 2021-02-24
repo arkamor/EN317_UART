@@ -3,7 +3,7 @@
 
 #include "Uart.hpp"
 #include "Testbench.hpp"
-//#include "Reg.hpp"
+
 
 int sc_main(int, char**) {  
 
@@ -14,15 +14,6 @@ int sc_main(int, char**) {
 
 	int baudrate = 115200;
 	int parity = 2;
-
-	int config_data = (parity << 21) + baudrate;
-
-	printf("conifg = %d + %d = %d\n",  (parity) << 21, baudrate, config_data);
-	
-	
-	Testbench.set_config(config_data);
-	//Testbench.set_data(0xAB);
-
 
 	Uart.apb_in.bind(Testbench.apb_out);
 	Testbench.apb_in.bind(Uart.apb_out);

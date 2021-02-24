@@ -3,6 +3,9 @@
 //MAIN REGISTER
 #define BASE_ADDR 0x400E0800
 
+#define REG_SIZE  32
+
+
 //CONTROL REGISTER
 #define UART_CR_ADDR 0x00
 #define RSTRX_Bp 2  //Reset Receiver
@@ -44,18 +47,20 @@ class Reg
 
    public: Reg()
     {
+        this->base_addr = reinterpret_cast<unsigned char*>(malloc(REG_SIZE));
         std::cout << "Reg created" << std::endl;
     }
 
-public:
-   void writeToRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
+   public: void writeToRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
    {
       printf("Wrote to register");
-      ;//memcpy(offset, &data, len);
+      memcpy(base_addr + offset, &data, len);
    }
 
-   void readRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
+   public: void readRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
    {
-      ;//memcpy(&data, offset, len);
+      memcpy(&data, base_addr + offset, len);
    }
+
+   private: unsigned char *base_addr;
 };

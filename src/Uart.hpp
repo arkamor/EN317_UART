@@ -4,30 +4,45 @@
 #include <tlm_utils/simple_target_socket.h>
 #include <tlm_utils/simple_initiator_socket.h>
 #include "Reg.hpp"
+#include "Socket.hpp"
 
 using namespace sc_core;
+
+typedef struct out_frame{
+    bool start = 0;
+    int payload = 0;
+    bool parity = NULL;
+    bool stop = 1;
+}out_frame;
 
 class Uart : sc_module
 {
     SC_HAS_PROCESS(Uart);
-    
 
-
-    public: Uart(sc_module_name name): sc_module(name), apb_out("apb_out"), apb_in("apb_in")
+    public: Uart(sc_module_name name): sc_module(name),
+        apb_out("apb_out"),
+        apb_in("apb_in"),
+        pmc_out("pmc_out"),
+        pmc_in("pmc_in"),
+        io_tx("io_tx"),
+        io_rx("io_rx"),
+        irq_out("irq_out")
     {
         apb_in.register_b_transport(this, &Uart::apb_receive);
+        pmc_in.register_b_transport(this, &Uart::pmc_receive);
+        io_rx.register_b_transport(this, &Uart::io_receive);
+
         std::cout << "Uart called" << std::endl;
     }
 
     private: void apb_receive(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
     {
-
         tlm::tlm_command cmd = trans.get_command();
         sc_dt::uint64    adr = trans.get_address() / 4;
         unsigned char*   ptr = trans.get_data_ptr();
         unsigned int     len = trans.get_data_length();
 
-        printf("Data received (%d o) : ", len);
+        printf("APB received (%d o) : ", len);
         for(int i=0; i<len;i++)
         {
             printf("%d", *(ptr+(len-i-1))); // 2 - 1 - 0
@@ -36,7 +51,18 @@ class Uart : sc_module
 
         printf("\n");
 
+        unsigned char taistent = 0b00001101;
+        printf("parite : %d\n", getParity(taistent));
+
         my_reg.writeToRegister(adr, ptr, len);
+
+        // On envoie les données sur les io tx
+        /*
+        if(my_reg.isTxReady() && my_reg.isTxEnable()){
+            sendData(my_reg.readTHR());
+            my_reg.resetTxReady();
+        }
+        */
 
         wait(delay);
         delay = SC_ZERO_TIME;
@@ -44,9 +70,125 @@ class Uart : sc_module
         trans.set_response_status(tlm::TLM_OK_RESPONSE);
     }
 
-    private: void sendData()
+    private: void pmc_receive(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
     {
-        ; // Tu meux mettre ton code ici nico
+        tlm::tlm_command cmd = trans.get_command();
+        sc_dt::uint64    adr = trans.get_address() / 4;
+        unsigned char*   ptr = trans.get_data_ptr();
+        unsigned int     len = trans.get_data_length();
+
+        printf("PMC received (%d o) : ", len);
+        for(int i=0; i<len;i++)
+        {
+            printf("%d", *(ptr+(len-i-1))); // 2 - 1 - 0
+            if(i != len-1) printf(" - ");
+        }
+
+        printf("\n");
+
+        /* Process du PMC ICI
+        /
+        / typedef struct genericPayload{
+        /     int freq;
+        /     int MCK;
+        / }GenericPayload;
+        / if(payload->MCK) {1 ou 0}
+        /
+       */
+
+        // my_reg.writeToRegister(adresse du reg pour la clock et tout, adresse de la donnée, taille de la donnée);
+
+        wait(delay);
+        delay = SC_ZERO_TIME;
+
+        trans.set_response_status(tlm::TLM_OK_RESPONSE);
+    }
+
+    private: void io_receive(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
+    {
+        tlm::tlm_command cmd = trans.get_command();
+        sc_dt::uint64    adr = trans.get_address() / 4;
+        unsigned char*   ptr = trans.get_data_ptr();
+        unsigned int     len = trans.get_data_length();
+
+        printf("IO received (%d o) : ", len);
+        for(int i=0; i<len;i++)
+        {
+            printf("%d", *(ptr+(len-i-1))); // 2 - 1 - 0
+            if(i != len-1) printf(" - ");
+        }
+
+        printf("\n");
+
+        // On remplie le registre avec les data IN
+
+        // my_reg.writeToRegister(adr, ptr, len);
+
+        sendIRQ();
+
+        wait(delay);
+        delay = SC_ZERO_TIME;
+
+        trans.set_response_status(tlm::TLM_OK_RESPONSE);
+    }
+
+    private: void sendIRQ(){
+        tlm::tlm_generic_payload my_payload;
+        unsigned char value = 1;
+        buidPayload(&value, 1, 0x00000000, &my_payload);
+
+        std::cout << "Envoi IRQ" << std::endl;
+        sendToSocket(&my_payload, &irq_out);
+    }
+
+    private: bool getParity(unsigned char n) 
+    { 
+        bool parity = 0; 
+        while(n) 
+        { 
+            parity = !parity; 
+            n = n & (n - 1); 
+        }
+        return parity; 
+    } 
+
+    private: void sendData(unsigned char data_out)
+    {   
+        // Calcul de la parite
+        /*
+        unsigned char reg_data = 0;
+        this.my_reg.readRegister(addr, &reg_data, 1);
+
+        switch (reg_data){
+            case 0: //EVEN
+                bool parity = 0; // calculer
+            break;
+            case 1: //ODD
+                bool parity = 0; // calculer
+            break;
+            case 2: // Force 0
+                bool parity = 0;
+            break;
+            case 3: // Force 1
+                bool parity = 1;
+            break;
+            case 4: // Force NONE
+                bool parity = NULL;
+            break;
+            
+        }
+        */
+        
+
+
+        // ma payload = 0b 0 xxxx xxxx p 0
+        out_frame payload_data;
+
+        tlm::tlm_generic_payload my_payload;
+        buidPayload(reinterpret_cast<unsigned char *>(&payload_data), sizeof(payload_data), 0x00000000, &my_payload);
+
+        std::cout << "Envoi Data to Tx" << std::endl;
+        sendToSocket(&my_payload, &io_tx);
     }
 
     public: void sendToSocket(tlm::tlm_generic_payload *my_payload, tlm_utils::simple_initiator_socket<Uart> *socket)
@@ -74,7 +216,15 @@ class Uart : sc_module
     }
 
     public: tlm_utils::simple_initiator_socket<Uart> apb_out;
-    public: tlm_utils::simple_target_socket<Uart> apb_in;
+    public: tlm_utils::simple_target_socket<Uart>    apb_in;
+
+    public: tlm_utils::simple_initiator_socket<Uart> pmc_out;
+    public: tlm_utils::simple_target_socket<Uart>    pmc_in;
+
+    public: tlm_utils::simple_initiator_socket<Uart> io_tx;
+    public: tlm_utils::simple_target_socket<Uart>    io_rx;
+
+    public: tlm_utils::simple_initiator_socket<Uart> irq_out;
 
     private: Reg my_reg;
 

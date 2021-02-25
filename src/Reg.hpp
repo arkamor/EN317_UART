@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 //MAIN REGISTER
-#define BASE_ADDR 0x400E0800
+//#define BASE_ADDR 0x400E0800
 
 #define REG_SIZE  32
 
@@ -19,7 +19,6 @@
 //MODE REGISTER
 #define UART_MR_ADDR 0x04
 #define PAR_Bp 9     //Parity Type : 0 EVEN - 1 ODD - 2 SPACE - 3 MARK - 4 NO
-#define CHMODE_Bp 14 //Channel Mode : 0 NORMAL - 1 AUTO - 2 LOCAL_LOOPBACK - 3 REMOTE_LOOPBACK
 
 //SATUS REGISTER
 #define UART_SR_ADDR 0x14
@@ -60,6 +59,46 @@ class Reg
    public: void readRegister(sc_dt::uint64 offset, unsigned char *data, unsigned int len)
    {
       memcpy(&data, base_addr + offset, len);
+   }
+
+   public: unsigned char isRxEnable() 
+   {
+      return (*(base_addr + UART_CR_ADDR) >> RXEN_Bp) & 1;
+   }
+
+   public: unsigned char isTxEnable()
+   {
+      return (*(base_addr + UART_CR_ADDR) >> TXEN_Bp) & 1;
+   }
+
+   public: unsigned char isRxReady()
+   {
+      return (*(base_addr + UART_SR_ADDR) >> RXRDY_Bp) & 1;
+   }
+
+   public: unsigned char isTxReady()
+   {
+      return (*(base_addr + UART_SR_ADDR) >> TXRDY_Bp) & 1;
+   }
+
+   public: void resetTxReady()
+   {
+      *(base_addr + UART_SR_ADDR) = *(base_addr + UART_SR_ADDR) & (1 << TXRDY_Bp);
+   }
+
+   public: void writeRHR(unsigned char data)
+   {
+      *(base_addr + UART_RHR_ADDR) = *(base_addr + UART_RHR_ADDR) & (data << RXCHR_Bp));
+   }
+
+   public: unsigned char readTHR()
+   {
+      return *(base_addr + UART_THR_ADDR) & (1 << TXCHR_Bp);
+   }
+
+   public: unsigned char readyParity()
+   {
+      return (*(base_addr + UART_MR_ADDR) >> PAR_Bp) & 0x07;
    }
 
    private: unsigned char *base_addr;

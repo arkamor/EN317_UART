@@ -64,9 +64,9 @@ public:
    }
 
 public:
-   void isIRQEn()
+   unsigned char isIRQEn()
    {
-      //return (*(base_addr + UART_CR_ADDR) >> RXEN_Bp) & 1;
+      return (*(base_addr + UART_CR_ADDR) >> RXEN_Bp) & 1;
    }
 
 public:
@@ -136,7 +136,7 @@ public:
 public:
    void writeRHR(unsigned char data)
    {
-      *(base_addr + UART_RHR_ADDR) = *(base_addr + UART_RHR_ADDR) & (data << RXCHR_Bp));
+      *(base_addr + UART_RHR_ADDR) = *(base_addr + UART_RHR_ADDR) & (data << RXCHR_Bp);
    }
 
 public:
@@ -149,6 +149,13 @@ public:
    unsigned char readyParity()
    {
       return (*(base_addr + UART_MR_ADDR) >> PAR_Bp) & 0x07;
+   }
+
+public:
+   unsigned char getCD()
+   {
+      return 0;
+      //return (*(base_addr + UART_MR_ADDR) >> PAR_Bp) & 0x07;
    }
 
 private:

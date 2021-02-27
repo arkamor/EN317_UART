@@ -51,19 +51,13 @@ class Uart : sc_module
 
         printf("\n");
 
-        unsigned char taistent = 0b00001101;
-        printf("parite : %d\n", getParity(taistent));
-
         my_reg.writeToRegister(adr, ptr, len);
 
-        // On envoie les données sur les io tx
-        /*
         if(my_reg.isTxReady() && my_reg.isTxEnable()){
             sendData(my_reg.readTHR());
             my_reg.resetTxReady();
         }
-        */
-
+        
         wait(delay);
         delay = SC_ZERO_TIME;
 
@@ -86,17 +80,20 @@ class Uart : sc_module
 
         printf("\n");
 
-        /* Process du PMC ICI
-        /
-        / typedef struct genericPayload{
-        /     int freq;
-        /     int MCK;
-        / }GenericPayload;
-        / if(payload->MCK) {1 ou 0}
-        /
-       */
+        memcpy(&PMC_data, ptr, len);
 
-        // my_reg.writeToRegister(adresse du reg pour la clock et tout, adresse de la donnée, taille de la donnée);
+        // Process du PMC ICI
+
+        if(PMC_data.MCK)
+        {
+            my_reg.enableTx();
+            my_reg.enableRx();
+        }
+        else
+        {
+            my_reg.disableTx();
+            my_reg.disableRx();
+        }
 
         wait(delay);
         delay = SC_ZERO_TIME;
@@ -121,10 +118,18 @@ class Uart : sc_module
         printf("\n");
 
         // On remplie le registre avec les data IN
+        out_frame my_frame;
 
-        // my_reg.writeToRegister(adr, ptr, len);
+        memcpy(&my_frame, ptr, len);
 
-        sendIRQ();
+        my_reg.writeRHR(my_frame.payload);
+
+        if(my_reg.isIRQEn())
+        {
+            sendIRQ();
+        }
+
+        my_reg.setRxReady();
 
         wait(delay);
         delay = SC_ZERO_TIME;
@@ -155,40 +160,44 @@ class Uart : sc_module
     private: void sendData(unsigned char data_out)
     {   
         // Calcul de la parite
-        /*
-        unsigned char reg_data = 0;
-        this.my_reg.readRegister(addr, &reg_data, 1);
-
+        unsigned char reg_data = my_reg.readyParity();
+        bool parity;
         switch (reg_data){
             case 0: //EVEN
-                bool parity = 0; // calculer
+                parity = getParity(data_out) & 1; // calculer
             break;
             case 1: //ODD
-                bool parity = 0; // calculer
+                parity = getParity(data_out) & 0; // calculer
             break;
             case 2: // Force 0
-                bool parity = 0;
+                parity = 0;
             break;
             case 3: // Force 1
-                bool parity = 1;
+                parity = 1;
             break;
-            case 4: // Force NONE
-                bool parity = NULL;
+            default: // Force NONE
+                parity = NULL;
             break;
-            
         }
-        */
-        
 
-
-        // ma payload = 0b 0 xxxx xxxx p 0
         out_frame payload_data;
+        
+        payload_data.parity = parity;
+        payload_data.payload = data_out;
 
         tlm::tlm_generic_payload my_payload;
         buidPayload(reinterpret_cast<unsigned char *>(&payload_data), sizeof(payload_data), 0x00000000, &my_payload);
 
         std::cout << "Envoi Data to Tx" << std::endl;
         sendToSocket(&my_payload, &io_tx);
+
+        int baud_rate = PMC_data.MCK/(my_reg.getCD()/16);
+
+        int parity_nb_bits = 1;
+        if(reg_data == 4) parity_nb_bits = 0;
+        int time = 1000 * 1000 * (10 + parity_nb_bits) / baud_rate;
+
+        wait(sc_time(time, SC_US));
     }
 
     public: void sendToSocket(tlm::tlm_generic_payload *my_payload, tlm_utils::simple_initiator_socket<Uart> *socket)
@@ -227,5 +236,7 @@ class Uart : sc_module
     public: tlm_utils::simple_initiator_socket<Uart> irq_out;
 
     private: Reg my_reg;
+
+    private: genericPayload PMC_data;
 
 };

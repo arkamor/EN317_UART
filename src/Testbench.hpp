@@ -21,23 +21,18 @@ class Testbench : sc_module
         tb_to_irq_out("tb_to_irq_out")
     {
         this->data = 123;
-        SC_THREAD(firstProcess);
+        SC_THREAD(TestProcess);
     }
 
 
-    private: void firstProcess()
-    {
-
-        tlm::tlm_generic_payload my_payload;
-
-        printf("Building Payload with value : %d\n", data);
-    
-        buidPayload(&(this->data), 1, 0x00000000, &my_payload);
-
-        std::cout << "Envoi Data in Testbench" << std::endl;
-        sendToSocket(&my_payload, &tb_to_apb_in);
-
-    }
+    // private: void firstProcess()
+    // {
+    //     tlm::tlm_generic_payload my_payload;
+    //     printf("Building Payload with value : %d\n", data);
+    //     buidPayload(&(this->data), 1, 0x00000000, &my_payload);
+    //     std::cout << "Envoi Data in Testbench" << std::endl;
+    //     sendToSocket(&my_payload, &tb_to_apb_in);
+    // }
 
     public: void sendToSocket(tlm::tlm_generic_payload *my_payload, tlm_utils::simple_initiator_socket<Testbench> *socket)
     {
@@ -63,6 +58,66 @@ class Testbench : sc_module
         payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
     }
 
+    private: void TestProcess()
+    {
+
+        tlm::tlm_generic_payload my_payload;
+
+        printf("Init\n");
+
+        // Address 0x00 | offset 2 | write
+        buidPayload(&(this->data), 1, 0x01, &my_payload);
+        sendToSocket(&my_payload, &tb_to_pmc_in);
+        std::cout << "Disable pmc\n" << std::endl;
+
+        // Address 0x00 | offset 2 | write
+        buidPayload(&(this->data), 2, 0x00, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Reset Receiver : UART_CR->RSTRX\n" << std::endl;
+
+        // Address 0x00 | offset 3 | write
+        buidPayload(&(this->data), 3, 0x00, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Reset Transmitter : UART_CR->RSTTX\n" << std::endl;
+
+        buidPayload(&(this->data), 1, 0x00, &my_payload);
+        sendToSocket(&my_payload, &tb_to_pmc_in);
+        std::cout << "Enable pmc\n" << std::endl;
+
+        // Address 0x00 | offset 4 | write
+        buidPayload(&(this->data), 4, 0x00, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Enable receiver : UART_CR->RXEN\n" << std::endl;
+
+        // Address 0x00 | offset 6 | write
+        buidPayload(&(this->data), 6, 0x00, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Enable receiver : UART_CR->TXEN\n" << std::endl;
+
+        printf("TestProcess\n");
+
+        // Address 0x1C | write
+        buidPayload(&(this->data), 0, 0x1C, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Send data : UART_THR\n" << std::endl;
+
+        // Address 0x00 | write
+        buidPayload(&(this->data), 0, 0x00, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Enable interrupt : UART_IER\n" << std::endl;
+
+        // Address 0x14 | read
+        buidPayload(&(this->data), 0, 0x14, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Read interrupt : UART_SR->RXRDY\n" << std::endl;
+
+        // Address 0x18 | Read
+        buidPayload(&(this->data), 0, 0x18, &my_payload);
+        sendToSocket(&my_payload, &tb_to_apb_in);
+        std::cout << "Read data : UART_RHR\n" << std::endl;
+
+    }
+
     public: tlm_utils::simple_target_socket<Testbench>    tb_to_apb_out;
     public: tlm_utils::simple_initiator_socket<Testbench> tb_to_apb_in;
 
@@ -78,3 +133,5 @@ class Testbench : sc_module
 
 };
 
+
+    
